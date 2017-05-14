@@ -23,9 +23,7 @@
  ******************************************************************************/
 #ifndef _AVRC_DEFS_H
 #define _AVRC_DEFS_H
-#include "bt_target.h"
 
-#if (AVRC_INCLUDED == TRUE)
 /*****************************************************************************
 **  constants
 *****************************************************************************/
@@ -1358,5 +1356,5 @@ typedef union {
     tAVRC_RSP                       add_to_play;            /* AddToNowPlaying */
 } tAVRC_RESPONSE;
 
-#endif  ///AVRC_INCLUDED == TRUE
+
 #endif

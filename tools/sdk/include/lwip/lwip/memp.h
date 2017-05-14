@@ -71,7 +71,7 @@ extern const struct memp_desc* const memp_pools[MEMP_MAX];
 #include "lwip/mem.h"
 
 #define memp_init()
-#if ESP_STATS_MEM
+#if ESP_CNT_DEBUG
 static inline void* memp_malloc(int type)
 {
     ESP_CNT_MEM_MALLOC_INC(type);
