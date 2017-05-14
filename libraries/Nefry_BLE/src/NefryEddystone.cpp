@@ -215,8 +215,8 @@ static uint8_t ble_send_cmd(uint16_t cmd, uint8_t * data, uint8_t len){
     _vhci_host_command = cmd;
 
     //log_printf("BLE: cmd: 0x%04X, data[%u]:", cmd, len);
-    for (uint16_t i=0; i<len; i++) log_printf(" %02x", buf[i+4]);
-    log_printf("\n");
+    //for (uint16_t i=0; i<len; i++) log_printf(" %02x", buf[i+4]);
+    //log_printf("\n");
     
     esp_vhci_host_send_packet(buf, outlen);
     while(_vhci_host_command_running);
@@ -333,7 +333,7 @@ bool Nefry_Eddystone::setUrl(String url, int mode) {
 	if (uri_len >= 17)return false;
 	for (int i = 0; i<uri_len; i++) {
 		adv_data[14 + i] = (uint8_t)url.charAt(i);
-		Serial.print(url.charAt(i));
+		//Serial.print(url.charAt(i));
 	}
 	adv_data[7] = uri_len + 6;
 	ble_send_cmd(HCI_BLE_WRITE_ADV_DATA, (uint8_t *)adv_data, HCIC_PARAM_SIZE_BLE_WRITE_ADV_DATA + 1);
