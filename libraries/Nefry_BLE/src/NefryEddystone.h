@@ -1,4 +1,4 @@
-﻿// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef _SIMPLE_BLE_H_
-#define _SIMPLE_BLE_H_
+#ifndef _EDDYSTONE_BLE_H_
+#define _EDDYSTONE_BLE_H_
 
 
 #include <cstdint>
@@ -28,36 +28,37 @@
 
 struct ble_gap_adv_params_s;
 
-class Nefry_BLE {
-public:
+class Nefry_Eddystone {
+    public:
 
-	Nefry_BLE(void);
-	~Nefry_BLE(void);
+        ~Nefry_Eddystone(void);
 
-	/**
-	* Start BLE Advertising
-	*
-	* @param[in] localName  local name to advertise
-	*
-	* @return true on success
-	*
-	*/
-	bool begin();
+        /**
+         * Start BLE Advertising
+         *
+         * @param[in] localName  local name to advertise
+         *
+         * @return true on success
+         *
+         */
+        bool begin();
 
-	/**
-	* Stop BLE Advertising
-	*
-	* @return none
-	*/
-	void end(void);
+		bool setUrl(String url);
 
-private:
-	struct ble_gap_adv_params_s * _ble_adv_param;
-	String local_name;
-	void _ble_send_adv_param(void);
-	void _ble_send_adv_data(void);
-private:
+		bool setUrl(String url, int mode);
+
+        /**
+         * Stop BLE Advertising
+         *
+         * @return none
+         */
+        void end(void);
+
+    private:
+        struct ble_gap_adv_params_s * _ble_adv_param;
+        void _ble_send_adv_param(void);
+        void _ble_send_adv_data(void);
 
 };
-
+extern Nefry_Eddystone NefryEddystone;
 #endif

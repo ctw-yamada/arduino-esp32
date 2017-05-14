@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "NefryBLE.h"
+#include "NefryEddystone.h"
 #include "esp32-hal-log.h"
 
 /*  HCI Command opcode group field(OGF) */
@@ -99,16 +99,16 @@
 
 
 /*
-* BLE System
-*
-* */
+ * BLE System
+ *
+ * */
 
 /* HCI H4 message type definitions */
 enum {
-	H4_TYPE_COMMAND = 1,
-	H4_TYPE_ACL = 2,
-	H4_TYPE_SCO = 3,
-	H4_TYPE_EVENT = 4
+    H4_TYPE_COMMAND = 1,
+    H4_TYPE_ACL     = 2,
+    H4_TYPE_SCO     = 3,
+    H4_TYPE_EVENT   = 4
 };
 
 volatile bool _vhci_host_send_available = false;
@@ -119,136 +119,134 @@ static uint8_t _vhci_host_command_result = 0x00;
 //controller is ready to receive command
 static void _on_tx_ready(void)
 {
-	_vhci_host_send_available = true;
+    _vhci_host_send_available = true;
 }
 /*
 static void _dump_buf(const char * txt, uint8_t *data, uint16_t len){
-log_printf("%s[%u]:", txt, len);
-for (uint16_t i=0; i<len; i++)
-log_printf(" %02x", data[i]);
-log_printf("\n");
+    log_printf("%s[%u]:", txt, len);
+    for (uint16_t i=0; i<len; i++)
+        log_printf(" %02x", data[i]);
+    log_printf("\n");
 }
 */
 //controller has a packet
 static int _on_rx_data(uint8_t *data, uint16_t len)
 {
-	if (len == 7 && *data == 0x04) {
-		//baseband response
-		uint16_t cmd = (((uint16_t)data[5] << 8) | data[4]);
-		uint8_t res = data[6];
-		if (_vhci_host_command_running && _vhci_host_command == cmd) {
-			//_dump_buf("BLE: res", data, len);
-			_vhci_host_command_result = res;
-			_vhci_host_command_running = false;
-			return 0;
-		}
-		else if (cmd == 0) {
-			log_e("error %u", res);
-		}
-	}
+    if(len == 7 && *data == 0x04){
+        //baseband response
+        uint16_t cmd = (((uint16_t)data[5] << 8) | data[4]);
+        uint8_t res = data[6];
+        if(_vhci_host_command_running && _vhci_host_command == cmd){
+            //_dump_buf("BLE: res", data, len);
+            _vhci_host_command_result = res;
+            _vhci_host_command_running = false;
+            return 0;
+        } else if(cmd == 0){
+            log_e("error %u", res);
+        }
+    }
 
-	//_dump_buf("BLE: rx", data, len);
-	return 0;
+    //_dump_buf("BLE: rx", data, len);
+    return 0;
 }
 
 
 
 
 static esp_vhci_host_callback_t vhci_host_cb = {
-	_on_tx_ready,
-	_on_rx_data
+        _on_tx_ready,
+        _on_rx_data
 };
 
 static bool _esp_ble_start()
 {
-	if (btStart()) {
-		esp_vhci_host_register_callback(&vhci_host_cb);
-		uint8_t i = 0;
-		while (!esp_vhci_host_check_send_available() && i++ < 100) {
-			delay(10);
-		}
-		if (i >= 100) {
-			log_e("esp_vhci_host_check_send_available failed");
-			return false;
-		}
-		_vhci_host_send_available = true;
-	}
-	else
-		log_e("BT Failed");
-	return true;
+    if(btStart()){
+        esp_vhci_host_register_callback(&vhci_host_cb);
+        uint8_t i = 0;
+        while(!esp_vhci_host_check_send_available() && i++ < 100){
+            delay(10);
+        }
+        if(i >= 100){
+            log_e("esp_vhci_host_check_send_available failed");
+            return false;
+        }
+        _vhci_host_send_available = true;
+    } else 
+        log_e("BT Failed");
+    return true;
 }
 
 static bool _esp_ble_stop()
 {
-	if (btStarted()) {
-		_vhci_host_send_available = false;
-		btStop();
-		esp_vhci_host_register_callback(NULL);
-	}
-	return true;
+    if(btStarted()){
+        _vhci_host_send_available = false;
+        btStop();
+        esp_vhci_host_register_callback(NULL);
+    }
+    return true;
 }
 
 //public
 
-static uint8_t ble_send_cmd(uint16_t cmd, uint8_t * data, uint8_t len) {
-	static uint8_t buf[36];
-	if (len > 32) {
-		//too much data
-		return 2;
-	}
-	uint16_t i = 0;
-	while (!_vhci_host_send_available && i++ < 1000) {
-		delay(1);
-	}
-	if (i >= 1000) {
-		log_e("_vhci_host_send_available failed");
-		return 1;
-	}
-	uint8_t outlen = len + HCI_H4_CMD_PREAMBLE_SIZE;
-	buf[0] = H4_TYPE_COMMAND;
-	buf[1] = (uint8_t)(cmd & 0xFF);
-	buf[2] = (uint8_t)(cmd >> 8);
-	buf[3] = len;
-	if (len) {
-		memcpy(buf + 4, data, len);
-	}
-	_vhci_host_send_available = false;
-	_vhci_host_command_running = true;
-	_vhci_host_command = cmd;
+static uint8_t ble_send_cmd(uint16_t cmd, uint8_t * data, uint8_t len){
+    static uint8_t buf[36];
+    if(len > 32){
+        //too much data
+        return 2;
+    }
+    uint16_t i = 0;
+    while(!_vhci_host_send_available && i++ < 1000){
+        delay(1);
+    }
+    if(i >= 1000){
+        log_e("_vhci_host_send_available failed");
+        return 1;
+    }
+    uint8_t outlen = len + HCI_H4_CMD_PREAMBLE_SIZE;
+    buf[0] = H4_TYPE_COMMAND;
+    buf[1] = (uint8_t)(cmd & 0xFF);
+    buf[2] = (uint8_t)(cmd >> 8);
+    buf[3] = len;
+    if(len){
+        memcpy(buf+4, data, len);
+    }
+    _vhci_host_send_available = false;
+    _vhci_host_command_running = true;
+    _vhci_host_command = cmd;
 
-	//log_printf("BLE: cmd: 0x%04X, data[%u]:", cmd, len);
-	//for (uint16_t i=0; i<len; i++) log_printf(" %02x", buf[i+4]);
-	//log_printf("\n");
-
-	esp_vhci_host_send_packet(buf, outlen);
-	while (_vhci_host_command_running);
-	int res = _vhci_host_command_result;
-	//log_printf("BLE: cmd: 0x%04X, res: %u\n", cmd, res);
-	return res;
+    //log_printf("BLE: cmd: 0x%04X, data[%u]:", cmd, len);
+    for (uint16_t i=0; i<len; i++) log_printf(" %02x", buf[i+4]);
+    log_printf("\n");
+    
+    esp_vhci_host_send_packet(buf, outlen);
+    while(_vhci_host_command_running);
+    int res = _vhci_host_command_result;
+    //log_printf("BLE: cmd: 0x%04X, res: %u\n", cmd, res);
+    return res;
 }
 
 
 /*
-* BLE Arduino
-*
-* */
+ * BLE Arduino
+ *
+ * */
 
 enum {
-	UNIT_0_625_MS = 625,  /* Number of microseconds in 0.625 milliseconds. */
-	UNIT_1_25_MS = 1250,  /* Number of microseconds in 1.25 milliseconds. */
-	UNIT_10_MS = 10000  /* Number of microseconds in 10 milliseconds. */
+    UNIT_0_625_MS = 625,  /* Number of microseconds in 0.625 milliseconds. */
+    UNIT_1_25_MS = 1250,  /* Number of microseconds in 1.25 milliseconds. */
+    UNIT_10_MS = 10000  /* Number of microseconds in 10 milliseconds. */
 };
 
 /* BLE Advertising parameters struct */
 typedef struct ble_gap_adv_params_s {
-	uint8_t type;
-	uint8_t own_addr_type;
-	uint8_t addr_type;
-	uint8_t addr[BD_ADDR_LEN];
-	uint8_t fp;  // filter policy
-	uint16_t interval_min;  // minimum advertising interval between 0x0020 and 0x4000 in 0.625 ms units (20ms to 10.24s)
-	uint16_t interval_max;
-	uint8_t chn_map;
+        uint8_t type;
+        uint8_t own_addr_type;
+        uint8_t addr_type;
+        uint8_t addr[BD_ADDR_LEN];
+        uint8_t fp;  // filter policy
+        uint16_t interval_min;  // minimum advertising interval between 0x0020 and 0x4000 in 0.625 ms units (20ms to 10.24s)
+        uint16_t interval_max;
+        uint8_t chn_map;
 } ble_adv_params_t;
 
 #define MSEC_TO_UNITS(TIME, RESOLUTION)  (((TIME) * 1000) / (RESOLUTION))
@@ -257,7 +255,14 @@ typedef struct ble_gap_adv_params_s {
 #define BDADDR_TO_STREAM(p, a)           {int i; for (i = 0; i < BD_ADDR_LEN;  i++) *(p)++ = (uint8_t) a[BD_ADDR_LEN - 1 - i];}
 #define ARRAY_TO_STREAM(p, a, len)       {int i; for (i = 0; i < len;          i++) *(p)++ = (uint8_t) a[i];}
 
-Nefry_BLE::Nefry_BLE()
+
+Nefry_Eddystone::~Nefry_Eddystone(void)
+{
+    free(_ble_adv_param);
+    _esp_ble_stop();
+}
+
+bool Nefry_Eddystone::begin()
 {
 	uint8_t peerAddr[BD_ADDR_LEN] = { 0x80, 0x81, 0x82, 0x83, 0x84, 0x85 };
 	_ble_adv_param = (ble_adv_params_t*)malloc(sizeof(ble_adv_params_t));
@@ -269,87 +274,94 @@ Nefry_BLE::Nefry_BLE()
 	_ble_adv_param->interval_max = 1024;
 	_ble_adv_param->addr_type = 0;//public
 	memcpy(_ble_adv_param->addr, peerAddr, BD_ADDR_LEN);
-	local_name = "esp32";
+    if(!_esp_ble_start()){
+        return false;
+    }
+    ble_send_cmd(HCI_RESET, NULL, 0);
+    _ble_send_adv_param();
+    return true;
 }
 
-Nefry_BLE::~Nefry_BLE(void)
-{
-	free(_ble_adv_param);
-	_esp_ble_stop();
-}
-
-bool Nefry_BLE::begin()
-{
-	if (!_esp_ble_start()) {
-		return false;
+bool Nefry_Eddystone::setUrl(String url) {
+	if (url.startsWith("http://www.")) {
+		return setUrl(url.substring(11), 0);
 	}
-	ble_send_cmd(HCI_RESET, NULL, 0);
+	else if (url.startsWith("https://www.")) {
+		return setUrl(url.substring(12), 1);
+	}
+	else if (url.startsWith("http://")) {
+		return setUrl(url.substring(7), 2);
+	}
+	else if (url.startsWith("https://")) {
+		return setUrl(url.substring(8), 3);
+	}
+	else {
+		return setUrl(url, 3);
+	}
+	return true;
+}
+bool Nefry_Eddystone::setUrl(String url, int mode) {
+	/** mode 引数情報
+	Decimal	Hex	Expansion
+	0	0x00	http://www.
+	1	0x01	https://www.
+	2	0x02	http://
+	3	0x03	https://
+	*/
 
-	_ble_send_adv_param();
-	_ble_send_adv_data();
+	uint8_t adv_data[HCIC_PARAM_SIZE_BLE_WRITE_ADV_DATA + 1];
+	memset(adv_data + 4, 0x00, HCIC_PARAM_SIZE_BLE_WRITE_ADV_DATA - 3);
+	uint8_t adv_data_len = 4;
+	adv_data[0] = 0x1f;   // Len
+	adv_data[1] = 0x01;   // Type Flags
+	adv_data[2] = 0x06;   // GENERAL_DISC_MODE 0x02 | BR_EDR_NOT_SUPPORTED 0x04
+	adv_data[3] = 0x03;   // Len
+	adv_data[4] = 0x03;   // Type 16-Bit UUID
+	adv_data[5] = 0xAA;   // Eddystone UUID 2 -> 0xFEAA LSB
+	adv_data[6] = 0xFE;   // Eddystone UUID 1 MSB
+	adv_data[7] = 0x00;   // Length of Beacon Data 後で変更すること
+	adv_data[8] = 0x16;   // Type Service Data
+	adv_data[9] = 0xAA;   // Eddystone UUID 2 -> 0xFEAA LSB
+	adv_data[10] = 0xFE;  // Eddystone UUID 1 MSB
 
+     /* Eddystone url protocol */
+
+	adv_data[11] = 0x10;  // Eddystone Frame Type
+	adv_data[12] = 0x05;  // Beacons TX power at 0m
+	adv_data[13] = mode & 0xff;  // URL Scheme
+	uint8_t uri_len = (uint8_t)url.length();
+	if (uri_len >= 17)return false;
+	for (int i = 0; i<uri_len; i++) {
+		adv_data[14 + i] = (uint8_t)url.charAt(i);
+		Serial.print(url.charAt(i));
+	}
+	adv_data[7] = uri_len + 6;
+	ble_send_cmd(HCI_BLE_WRITE_ADV_DATA, (uint8_t *)adv_data, HCIC_PARAM_SIZE_BLE_WRITE_ADV_DATA + 1);
 	uint8_t adv_enable = 1;
 	ble_send_cmd(HCI_BLE_WRITE_ADV_ENABLE, &adv_enable, HCIC_PARAM_SIZE_WRITE_ADV_ENABLE);
 	return true;
 }
 
-
-void Nefry_BLE::end()
+void Nefry_Eddystone::end()
 {
-	uint8_t adv_enable = 0;
-	ble_send_cmd(HCI_BLE_WRITE_ADV_ENABLE, &adv_enable, HCIC_PARAM_SIZE_WRITE_ADV_ENABLE);
-	ble_send_cmd(HCI_RESET, NULL, 0);
-	_esp_ble_stop();
+    uint8_t adv_enable = 0;
+    ble_send_cmd(HCI_BLE_WRITE_ADV_ENABLE, &adv_enable, HCIC_PARAM_SIZE_WRITE_ADV_ENABLE);
+    ble_send_cmd(HCI_RESET, NULL, 0);
+    _esp_ble_stop();
 }
 
-void Nefry_BLE::_ble_send_adv_param(void)
+void Nefry_Eddystone::_ble_send_adv_param(void)
 {
-	uint8_t dbuf[HCIC_PARAM_SIZE_BLE_WRITE_ADV_PARAMS];
-	uint8_t *buf = dbuf;
-	UINT16_TO_STREAM(buf, _ble_adv_param->interval_min);
-	UINT16_TO_STREAM(buf, _ble_adv_param->interval_max);
-	UINT8_TO_STREAM(buf, _ble_adv_param->type);
-	UINT8_TO_STREAM(buf, _ble_adv_param->own_addr_type);
-	UINT8_TO_STREAM(buf, _ble_adv_param->addr_type);
-	ARRAY_TO_STREAM(buf, _ble_adv_param->addr, BD_ADDR_LEN);
-	UINT8_TO_STREAM(buf, _ble_adv_param->chn_map);
-	UINT8_TO_STREAM(buf, _ble_adv_param->fp);
-	ble_send_cmd(HCI_BLE_WRITE_ADV_PARAMS, dbuf, HCIC_PARAM_SIZE_BLE_WRITE_ADV_PARAMS);
+    uint8_t dbuf[HCIC_PARAM_SIZE_BLE_WRITE_ADV_PARAMS];
+    uint8_t *buf = dbuf;
+    UINT16_TO_STREAM (buf, _ble_adv_param->interval_min);
+    UINT16_TO_STREAM (buf, _ble_adv_param->interval_max);
+    UINT8_TO_STREAM (buf, _ble_adv_param->type);
+    UINT8_TO_STREAM (buf, _ble_adv_param->own_addr_type);
+    UINT8_TO_STREAM (buf, _ble_adv_param->addr_type);
+    ARRAY_TO_STREAM (buf, _ble_adv_param->addr, BD_ADDR_LEN);
+    UINT8_TO_STREAM (buf, _ble_adv_param->chn_map);
+    UINT8_TO_STREAM (buf, _ble_adv_param->fp);
+    ble_send_cmd(HCI_BLE_WRITE_ADV_PARAMS, dbuf, HCIC_PARAM_SIZE_BLE_WRITE_ADV_PARAMS);
 }
-
-void Nefry_BLE::_ble_send_adv_data(void)
-{
-	uint8_t adv_data[31];
-	uint8_t adv_data_len;
-
-	adv_data[0] = 2;      // Len
-	adv_data[1] = 0x01;   // Type Flags
-	adv_data[2] = 0x06;   // GENERAL_DISC_MODE 0x02 | BR_EDR_NOT_SUPPORTED 0x04
-	adv_data[3] = 3;      // Len
-	adv_data[4] = 0x03;   // Type 16-Bit UUID
-	adv_data[5] = 0xAA;   // Eddystone UUID 2 -> 0xFEAA LSB
-	adv_data[6] = 0xFE;   // Eddystone UUID 1 MSB
-	adv_data[7] = 19;     // Length of Beacon Data
-	adv_data[8] = 0x16;   // Type Service Data
-	adv_data[9] = 0xAA;   // Eddystone UUID 2 -> 0xFEAA LSB
-	adv_data[10] = 0xFE;  // Eddystone UUID 1 MSB
-	adv_data[11] = 0x10;  // Eddystone Frame Type
-	adv_data[12] = 0x20;  // Beacons TX power at 0m
-	adv_data[13] = 0x03;  // URL Scheme 'https://'
-	adv_data[14] = 0x67;  // URL add  1 'g'
-	adv_data[15] = 0x6F;  // URL add  2 'o'
-	adv_data[16] = 0x6F;  // URL add  3 'o'
-	adv_data[17] = 0x2E;  // URL add  4 '.'
-	adv_data[18] = 0x67;  // URL add  5 'g'
-	adv_data[19] = 0x6C;  // URL add  6 'l'
-	adv_data[20] = 0x2F;  // URL add  7 '/'
-	adv_data[21] = 0x32;  // URL add  8 '2'
-	adv_data[22] = 0x79;  // URL add  9 'y'
-	adv_data[23] = 0x43;  // URL add 10 'C'
-	adv_data[24] = 0x36;  // URL add 11 '6'
-	adv_data[25] = 0x4B;  // URL add 12 'K'
-	adv_data[26] = 0x58;  // URL add 13 'X'
-
-	adv_data_len = 27;
-	ble_send_cmd(HCI_BLE_WRITE_ADV_DATA, (uint8_t *)adv_data, HCIC_PARAM_SIZE_BLE_WRITE_ADV_DATA + 1);
-}
+Nefry_Eddystone NefryEddystone;
